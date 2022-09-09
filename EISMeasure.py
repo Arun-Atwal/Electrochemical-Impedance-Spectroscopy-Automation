@@ -512,23 +512,27 @@ class ReviewRampsPage(tk.Frame):
     
     def process_ramps(self, master):
         # Plots an estimated schematic of the temperature profile over time, as well as calculates the estimated time for the whole experiment
-        # Note that estimated time is also calculated in the ramp input page, but it is messy to 
         # The time taken to take an impedance scan is roughly t(f) = 1/f + 2 for the solartron, as was measured manually and fit to by a curve.
-        # For the biologic, the time was fit to a polynomial
         # These times are then summed over for the entire frequency sweep
+
+        # For the biologic, we take an approximated approach
+        # Since the time is dominated by the lower frequency part of the sweep, we take 1/f as the time period
+        # We then multiply by the points per decade and an "effective number of decades"
+        # We have taken this effective number as 2 here
+        # Feel free to modify this number or the estimation process if better alternatives are found.
+        # I would suggest noting down actual experiment times in order to choose a better value
             
         def dt_sweep(ramp):
             t = 0
             frange = ramp.frange
-            if analyser.name == "Virtual Analyser" or analyser.name == "Solartron 1260" or analyser.name == "Biologic SP-200":
+            if analyser.name == "Virtual Analyser" or analyser.name == "Solartron 1260":
                 t += round(1.8047 * ramp.numpoints)
                 for f in frange:
                     t += round(1.0025 / f)
-            # elif analyser.name == "Biologic SP-200":
-            #     t += round(1.76e1 * ramp.numpoints)
-            #     for f in frange:
-            #         t += (-3.12e-8 * f**3) + (5.37e-5 * f**2) + (-3e-2 * f) + (2.36e1 * f**-1) + (-3.11e1 * f**-2) + (1.84e1 * f**-3)
+            elif analyser.name == "Biologic SP-200":
+                t+= (1/ramp.fmin) * ramp.ppd * 2
             else:
+                # Even if the sweep time is not calculated, total time is dominated by ramping and holding
                 raise Exception("Analyser type unrecognised when calculating estimated time.")
             return abs((ramp.min_holdtime + (ramp.num_sweeps_at_T - 1) * ramp.sweep_delay + ramp.num_sweeps_at_T * t) / 60) # Convert to minutes
         
